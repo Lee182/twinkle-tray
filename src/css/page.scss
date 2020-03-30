@@ -23,7 +23,7 @@ html, body {
 
 #page {
     overflow: auto;
-    
+
     padding: 20px;
     box-sizing: border-box;
     height: 100%;
@@ -45,10 +45,10 @@ html, body {
 
 /* Handle */
 ::-webkit-scrollbar-thumb {
-    background: rgba(122, 122, 122, 1); 
+    background: rgba(122, 122, 122, 1);
 }
 ::-webkit-scrollbar-thumb:window-inactive {
-    background: rgba(122, 122, 122, 0.5); 
+    background: rgba(122, 122, 122, 0.5);
 }
 
 
@@ -101,7 +101,7 @@ html, body {
         display: flex;
         align-items: center;
     }
-    
+
     .window-controls-container {
 
         display: flex;
@@ -150,18 +150,18 @@ html, body {
         .window-minimize {
             -webkit-mask: url("data:image/svg+xml;charset=utf-8,%3Csvg width='11' height='11' viewBox='0 0 11 11' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 4.399V5.5H0V4.399h11z' fill='%23000'/%3E%3C/svg%3E") no-repeat 50% 50%
         }
-        
+
         .window-icon-bg.window-close-bg:hover {
             background-color: rgba(232,17,35,.9)
         }
-        
+
         .window-icon.window-close:hover {
             background-color: #fff !important;
         }
 
 
 
-    }    
+    }
 
 }
 
@@ -213,7 +213,7 @@ input[type="checkbox"] {
         &:before {
             background: white;
             transform: translateX(28px);
-        }        
+        }
     }
 }
 
@@ -281,7 +281,7 @@ label {
         padding-top: 20px;
         margin-top: 20px;
         border-top: 1px solid var(--page-text-mid);
-        
+
         .monitor-item {
             max-width: 320px;
         }
@@ -330,6 +330,9 @@ a {
         border-color: var(--input-border);
     }
 }
+.button-gap {
+  margin-left: 12px;
+}
 
 
 .reorderList {
@@ -356,7 +359,7 @@ a {
 
 
 .hotkey-monitors {
-    
+
     .hotkey-item {
         margin-top: 30px;
     }
@@ -420,7 +423,7 @@ a {
         padding: 13px;
         box-sizing: border-box;
         line-height: 1;
-        
+
         .icon {
             padding-right: 13px;
             font-size: 18px;
@@ -438,7 +441,7 @@ a {
             background: var(--tray-border);
         }
         &:active {
-            
+
         }
 
         &:before {

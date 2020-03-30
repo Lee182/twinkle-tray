@@ -28,8 +28,10 @@
     "color": "^3.1.2",
     "electron-winstore-auto-launch": "^2.0.3",
     "markdown": "^0.5.0",
+    "moment-timezone": "^0.5.28",
     "node-fetch": "^2.6.0",
     "regedit": "^3.0.3",
+    "suncalc2": "^1.8.1",
     "wmi-client": "^0.5.0"
   },
   "build": {
@@ -81,9 +83,9 @@
     "@babel/preset-react": "^7.7.4",
     "concurrently": "4.1.0",
     "cross-env": "5.2.0",
-    "electron": "7.1.8",
-    "electron-is-dev": "1.0.1",
+    "electron": "^7.1.8",
     "electron-builder": "21.2.0",
+    "electron-is-dev": "1.0.1",
     "parcel-bundler": "^1.12.4",
     "react": "16.9.0",
     "react-beautiful-dnd": "^12.2.0",
