@@ -1,0 +1,61 @@
+methods
+  ui open settings
+  ui link brightness
+  set settings to default
+  monitor
+    set monitors.nBrightnessUpdateRate from aBrightnessUpdateRateOptions
+    set monitor sName
+    set monitor nOrder
+    set monitor nMin or nMax with slider
+  time adjustments
+    add time adjustment (at time) or (at Sunrise) or (at Sunset)
+    set individual brightness per monitor
+        pick time for adjustment.
+    pick event sunrise sunset for adjustment
+    remove time adjustment
+  hotkeys
+    set keyMap with method.
+    set brightness level adjustment.
+
+  backend
+    adjust brightness at start up from adjustments
+      to find time calculate all times future and past, and find nearest past and set that
+    when clock hits given time adjust brightness.
+    when clock hits event add the event again to the stack or array of plates.
+    turn off displays
+    increase brightness all or monitor
+    decrease brightness all or monitor
+    electron update system.
+settings:
+  ui:
+    id open tab
+    time adjustments
+      bool set individual brightness
+      bool adjust brightness at startup
+  general:
+    bOpenSettingsAtStartup: false
+    uiTheme: [
+      {name: 'Light Mode', bOn: true}
+    ]
+    language: [
+      {name: 'English', translations: {}}
+    ]
+  monitors:
+    aBrightnessUpdateRateOptions: ['2s', '1s', '.5s', '.25', 'Ludacrous']
+    nBrightnessUpdateRate: 'Normal 500ms'
+  monitor:
+    aMonitor
+      sRenamed
+      nOrder
+      oBrightness
+        nMin: 0-100%
+        nMax 0-100%
+    oMonitorRename
+    aMonitorOrder
+  time adjustments [
+    time
+  ]
+
+
+
+

@@ -168,7 +168,7 @@ function processSettings(newSettings = {}) {
 	}
 
 	if (newSettings.adjustmentTimes !== undefined) {
-		lastTimeEvent = false
+		lastAdjustment = null
 		restartBackgroundUpdate()
 	}
 
@@ -211,6 +211,8 @@ function applyHotkeys() {
 								true
 							)
 						}
+					} else if (hotkey.monitor === 'turnOffDisplays') {
+						turnOffDisplays()
 					} else {
 						const monitor = monitors.find((m) => m.id == hotkey.monitor)
 						if (monitor) {
@@ -725,6 +727,13 @@ ipcMain.on('update-brightness', function(event, data) {
 	updateBrightness(data.index, data.level)
 })
 
+const turnOffDisplays = function() {
+	exec(
+		`powershell.exe (Add-Type '[DllImport(\\"user32.dll\\")]^public static extern int SendMessage(int hWnd, int hMsg, int wParam, int lParam);' -Name a -Pas)::SendMessage(-1,0x0112,0xF170,2)`
+	)
+}
+ipcMain.on('turn-off-displays', turnOffDisplays)
+
 ipcMain.on('request-monitors', function(event, arg) {
 	refreshMonitors()
 })
@@ -1174,68 +1183,55 @@ function restartBackgroundUpdate() {
 	}
 }
 
-let lastTimeEvent = {
-	hour: new Date().getHours(),
-	minute: new Date().getMinutes(),
-	day: new Date().getDate()
-}
+let lastAdjustment = null
+let lastAdjustmentDate = null
 
 const isTimeGreater = (timeA, timeB) => {
 	return timeA.hour24 >= timeB.hour24 || (timeA.hour24 === timeB.hour24 && timeA.minute >= timeB.minute)
 }
 
-function handleBackgroundUpdate() {
-	const date = new Date()
+const updateSuncalcAdjustmentTImes = ({settings, date}) => {
 	settings.adjustmentTimes = settings.adjustmentTimes.map((event) => {
-		const eventHour =
-			event.hour * 1 +
-			(event.am == 'PM' && event.hour * 1 != 12 ? 12 : event.am == 'AM' && event.hour * 1 == 12 ? -12 : 0)
-		event.hour24 = eventHour
-		const sunCalcEvents = ['sunrise', 'sunset']
-		if (sunCalcEvents.indexOf(event.sunCalc) > -1) {
+		if (event.sunCalc) {
 			const times = suncalc.getTimes(date, 51.5, -0.1)
 			event.hour24 = times[event.sunCalc].getHours()
 			event.minute = times[event.sunCalc].getMinutes()
 		}
 		return event
 	})
-	try {
-		if (settings.adjustmentTimes.length > 0) {
-			checkForUpdates()
-			return
-		}
+}
 
-		const timeNow = {
-			hour24: date.getHours(),
-			minute: date.getMinutes()
-		}
-		// Reset on new day
-		if (lastTimeEvent && lastTimeEvent.day != date.getDate()) {
-			console.log('New day, resettings lastTimeEvent')
-			lastTimeEvent = false
-		}
+function handleBackgroundUpdate() {
+	if (settings.adjustmentTimes.length === 0) {
+		checkForUpdates()
+		return
+	}
+	const date = new Date()
+	const timeNow = {
+		hour24: date.getHours(),
+		minute: date.getMinutes()
+	}
+	// Reset on new day
+	if (lastAdjustment && lastAdjustmentDate !== date.getDate()) {
+		console.log('New day, resettings lastTimeEvent')
+		lastAdjustment = null
+		updateSuncalcAdjustmentTImes({settings, date})
+	}
 
-		const closestEventAferNow = settings.adjustmentTimes.reduce((prevEvent, event, index) => {
-			if (isTimeGreater(timeNow, event) && (!prevEvent || isTimeGreater(event, prevEvent))) {
-				return event
-			}
-			return prevEve
-		}, null)
-		debugger
-
-		if (
-			closestEventAfterNow !== null &&
-			(lastTimeEvent == false || isTimeGreater(closestEventAferNow, lastTimeEvent))
-		) {
-			console.log('Adjusting brightness automatically', foundEvent)
-			lastTimeEvent = Object.assign({}, foundEvent)
-			lastTimeEvent.day = new Date().getDate()
-			refreshMonitors().then(() => {
-				transitionBrightness(foundEvent.brightness, foundEvent.monitors ? foundEvent.monitors : {})
-			})
+	const adjustment = settings.adjustmentTimes.reduce((prevEvent, event, index) => {
+		if (isTimeGreater(timeNow, event) && (!prevEvent || isTimeGreater(event, prevEvent))) {
+			return event
 		}
-	} catch (e) {
-		console.error(e)
+		return prevEvent
+	}, null)
+
+	if (adjustment !== null && adjustment !== lastAdjustment) {
+		console.log('Adjusting brightness automatically', adjustment)
+		lastAdjustmentDate = date.getDate()
+		lastAdjustment = adjustment
+		refreshMonitors().then(() => {
+			transitionBrightness(adjustment.brightness, adjustment.monitors ? adjustment.monitors : {})
+		})
 	}
 
 	checkForUpdates()

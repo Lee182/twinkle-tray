@@ -1,89 +1,109 @@
-import React from "react";
-import { useEffect, Component } from "react"
-import PropTypes from 'prop-types';
+import React from 'react'
+import {useEffect, Component} from 'react'
+import {debounce} from 'lodash-es'
 
-export default class Slider extends Component {
+class Slider extends Component {
+	constructor(props) {
+		super(props)
+		this.state = this.reset({props: this.props, bOut: true}).state
+	}
 
-    firingEvent = false
-    handleChange = (event) => {
-        this.setState({ level: this.cap(event.target.value) }, this.fireChange)
-    }
+	reset({props, bOut = false}) {
+		const out = {
+			state: {
+				level: this.cap(props.level)
+			}
+		}
+		this.onChange = debounce(this._onChange, props.msOnChangeDebounced, {leading: false, trailing: true})
+		if (bOut) {
+			return out
+		}
+		this.setState(out.state)
+	}
 
-    handleWheel = (event) => {
-        if (this.props.scrolling === false) return false;
-        this.setState({ level: this.cap((this.state.level * 1) + Math.round(event.deltaY * -1 * 0.01)) }, this.fireChange)
-    }
+	handleChange = (event) => {
+		this.setState({level: this.cap(event.target.value)}, this.onChange)
+	}
 
-    fireChange = () => {
-        if (this.firingEvent === false && this.props.onChange && typeof this.props.onChange == "function") {
-            this.firingEvent = true
-            this.props.onChange(this.cap(this.state.level) * 1, this)
-            this.firingEvent = false
-        }
-    }
+	handleWheel = (event) => {
+		if (this.props.scrolling === false) return false
+		this.setState({level: this.cap(this.state.level * 1 + Math.round(event.deltaY * -1 * 0.01))}, this.onChange)
+	}
 
-    getName = () => {
-        if (this.props.name) {
-            return (
-                <div className="name-row">
-                    <div className="icon">{(this.props.monitortype == "wmi" ? <span>&#xE770;</span> : <span>&#xE7F4;</span>)}</div>
-                    <div className="title">{this.props.name}</div>
-                </div>
-            )
-        }
-    }
+	_onChange = () => {
+		this.props.onChange(this.cap(this.state.level) * 1, this)
+	}
 
-    cap = (level) => {
-        const min = (this.props.min || 0) * 1
-        const max = (this.props.max || 100) * 1
-        let capped = level * 1
-        if (level < min) {
-            capped = min
-        } else if (level > max) {
-            capped = max
-        }
-        return capped
-    }
+	cap = (level) => {
+		const {min, max} = this.props
+		let capped = level * 1
+		if (capped < min) {
+			capped = min
+		} else if (capped > max) {
+			capped = max
+		}
+		return capped
+	}
 
-    progressStyle = () => {
-        const min = (this.props.min || 0) * 1
-        const max = (this.props.max || 100) * 1
-        const level = this.cap((this.props.level || 0) * 1)
-        return { width: (0 + (((level - min) * (100 / (max - min))))) + "%" }
-    }
+	componentDidUpdate(oldProps) {
+		if (oldProps.level !== this.props.level) {
+			this.reset({props: this.props})
+			return
+		}
+		if (oldProps.msOnChangeDebounced !== this.props.msOnChangeDebounced) {
+			this.reset({props: this.props})
+			return
+		}
+	}
 
-    constructor(props) {
-        super(props);
-        this.state = {
-            level: this.cap((this.props.level === undefined ? 50 : this.props.level)),
-        }
-        this.fireChange()
-    }
+	renderName = () => {
+		if (this.props.name) {
+			return (
+				<div className="name-row">
+					<div className="icon">
+						{this.props.monitortype == 'wmi' ? <span>&#xE770;</span> : <span>&#xE7F4;</span>}
+					</div>
+					<div className="title">{this.props.name}</div>
+				</div>
+			)
+		}
+	}
 
-    componentDidUpdate(oldProps) {
-        if (oldProps.max != this.props.max || oldProps.min != this.props.min) {
-            this.setState({
-                level: this.cap(this.props.level)
-            }, this.fireChange())
-        }
-    }
+	render() {
+		const {min, max} = this.props
+		const styleProgress = {
+			width: 0 + (this.state.level - min) * (100 / (max - min)) + '%'
+		}
+		return (
+			<div className="monitor-item">
+				{this.renderName()}
+				<div className="input--range">
+					<div className="rangeGroup">
+						<input
+							type="range"
+							min={min}
+							max={max}
+							step={1}
+							value={this.state.level}
+							onChange={this.handleChange}
+							onWheel={this.handleWheel}
+							className="range"
+						/>
+						<div className="progress" style={styleProgress} />
+					</div>
+					<div className="val">{this.state.level}</div>
+				</div>
+			</div>
+		)
+	}
+}
 
-    render() {
-        const min = (this.props.min || 0) * 1
-        const max = (this.props.max || 100) * 1
-        const level = this.cap(this.props.level)
-        return (
-            <div className="monitor-item">
-                {this.getName()}
-                <div className="input--range">
-                    <div className="rangeGroup">
-                        <input type="range" min={min} max={max} value={level} data-percent={level + "%"} onChange={this.handleChange} onWheel={this.handleWheel} className="range" />
-                        <div className="progress" style={this.progressStyle()}></div>
-                    </div>
-                    <input type="number" min={min} max={max} value={level} onChange={this.handleChange} onWheel={this.handleWheel} className="val" />
-                </div>
-            </div>
-        );
-    }
+Slider.defaultProps = {
+	min: 0,
+	max: 100,
+	level: 50,
+	msOnChangeDebounced: 100,
+	onChange: () => {}
+}
 
-};
+export default Slider

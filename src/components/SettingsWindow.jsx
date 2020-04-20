@@ -1,4 +1,4 @@
-import React, {PureComponent} from 'react'
+import React, {PureComponent, Fragment} from 'react'
 import Titlebar from './Titlebar'
 import Slider from './Slider'
 import {DragDropContext, Droppable, Draggable} from 'react-beautiful-dnd'
@@ -12,6 +12,9 @@ const reorder = (list, startIndex, endIndex) => {
 	return result
 }
 
+const aSuncalc = ['sunrise', 'sunset', 'solarNoon']
+const suncalc = require('suncalc2')
+
 const getItemStyle = (isDragging, draggableStyle) => ({
 	userSelect: 'none',
 	background: isDragging ? 'rgba(122, 122, 122, 0.2)' : 'none',
@@ -24,62 +27,43 @@ const monitorSort = (a, b) => {
 	return aSort - bSort
 }
 
-const cleanUpKeyboardKeys = (inKey, inCode = false) => {
-	let key = inKey
-	let code = inCode
-
+const cleanUpKeyboardKeys = (key, code = false) => {
 	if (key.length == 1) {
 		key = key.toUpperCase()
 	}
-
-	switch (key) {
-		case 'Meta':
-			key = 'Super'
-			break
-		case ' ':
-			key = 'Space'
-			break
-		case 'ArrowUp':
-			key = 'Up'
-			break
-		case 'ArrowDown':
-			key = 'Down'
-			break
-		case 'ArrowLeft':
-			key = 'Left'
-			break
-		case 'ArrowRight':
-			key = 'Right'
-			break
-		case '+':
-			key = 'Plus'
-			break
-		case '-':
-			key = 'Minus'
-			break
+	const keyMap = {
+		Meta: 'Super',
+		' ': 'Space',
+		ArrowUp: 'Up',
+		ArrowDown: 'Down',
+		ArrowLeft: 'Left',
+		ArrowRight: 'Right',
+		'+': 'Plus',
+		'-': 'Minus'
 	}
-
-	if (code >= 96 && code <= 105) key = 'num' + (code - 96)
-
-	switch (code) {
-		case 106:
-			key = 'nummult'
-			break
-		case 107:
-			key = 'numadd'
-			break
-		case 109:
-			key = 'numsub'
-			break
-		case 110:
-			key = 'numdec'
-			break
-		case 111:
-			key = 'numdiv'
-			break
+	if (keyMap[key]) {
+		return keyMap[key]
 	}
-
+	if (code >= 96 && code <= 105) {
+		return 'num' + (code - 96)
+	}
+	const codeMap = {
+		106: 'nummult',
+		107: 'numadd',
+		109: 'numsub',
+		110: 'numdec',
+		111: 'numdiv'
+	}
+	if (codeMap[code]) {
+		return codeMap[code]
+	}
 	return key
+}
+
+const pad = (num, size) => {
+	var s = num + ''
+	while (s.length < size) s = '0' + s
+	return s
 }
 
 let T = new TranslateReact({}, {})
@@ -242,6 +226,7 @@ export default class SettingsWindow extends PureComponent {
 		this.setState({killWhenIdle})
 		window.sendSettings({killWhenIdle})
 	}
+
 	checkTimeAtStartupChanged = (event) => {
 		const checkTimeAtStartup = this.state.checkTimeAtStartup ? false : true
 		this.setState({checkTimeAtStartup})
@@ -395,7 +380,7 @@ export default class SettingsWindow extends PureComponent {
 			return this.state.monitors.map((monitor, index) => {
 				const remap = this.getRemap(monitor.name)
 				return (
-					<div key={monitor.name}>
+					<div key={monitor.id}>
 						<br />
 						<div className="sectionSubtitle">
 							<div className="icon">&#xE7F4;</div>
@@ -403,7 +388,7 @@ export default class SettingsWindow extends PureComponent {
 						</div>
 						<label>{T.t('GENERIC_MINIMUM')}</label>
 						<Slider
-							key={monitor.name + '.min'}
+							key={monitor.id + '.min'}
 							type="min"
 							level={remap.min}
 							monitorName={monitor.name}
@@ -413,7 +398,7 @@ export default class SettingsWindow extends PureComponent {
 						/>
 						<label>{T.t('GENERIC_MAXIMUM')}</label>
 						<Slider
-							key={monitor.name + '.max'}
+							key={monitor.id + '.max'}
 							type="max"
 							level={remap.max}
 							monitorName={monitor.name}
@@ -503,72 +488,76 @@ export default class SettingsWindow extends PureComponent {
 	getAdjustmentTimes = () => {
 		if (this.state.adjustmentTimes == undefined || this.state.adjustmentTimes.length == 0) {
 			return <div />
-		} else {
-			return this.state.adjustmentTimes.map((time, index) => (
+		}
+		return this.state.adjustmentTimes.map((time, index) => {
+			const bSuncalc = aSuncalc.indexOf(time.sunCalc) > -1
+			const SelectTime = (
+				<Fragment>
+					<select
+						onChange={(e) => {
+							this.updateAdjustment({nIndex: index, nHour: e.target.value})
+						}}
+						value={time.hour}>
+						{[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((n) => {
+							return <option key={n}>{n}</option>
+						})}
+					</select>
+					<select
+						onChange={(e) => {
+							this.updateAdjustment({nIndex: index, nMinute: e.target.value})
+						}}
+						value={time.minute}>
+						<option value="0">00</option>
+						<option>15</option>
+						<option>30</option>
+						<option>45</option>
+					</select>
+					<select
+						onChange={(e) => {
+							this.updateAdjustment({nIndex: index, sAmpm: e.target.value})
+						}}
+						value={time.am}>
+						<option>AM</option>
+						<option>PM</option>
+					</select>
+				</Fragment>
+			)
+			return (
 				<div className="item" key={index}>
 					<div className="row">
-						<select
-							onChange={(e) => {
-								this.setAdjustmentTimeValue(index, e.target.value, 'hour')
-							}}
-							value={time.hour}>
-							<option>1</option>
-							<option>2</option>
-							<option>3</option>
-							<option>4</option>
-							<option>5</option>
-							<option>6</option>
-							<option>7</option>
-							<option>8</option>
-							<option>9</option>
-							<option>10</option>
-							<option>11</option>
-							<option>12</option>
-						</select>
-						<select
-							onChange={(e) => {
-								this.setAdjustmentTimeValue(index, e.target.value, 'minute')
-							}}
-							value={time.minute}>
-							<option value="0">00</option>
-							<option>15</option>
-							<option>30</option>
-							<option>45</option>
-						</select>
-						<select
-							onChange={(e) => {
-								this.setAdjustmentTimeValue(index, e.target.value, 'am')
-							}}
-							value={time.am}>
-							<option>AM</option>
-							<option>PM</option>
-						</select>
-						<a
-							className="button"
-							onClick={() => {
-								this.state.adjustmentTimes.splice(index, 1)
-								this.forceUpdate()
-								this.adjustmentTimesUpdated()
-							}}>
+						{!bSuncalc && SelectTime}
+						{bSuncalc && (
+							<strong
+								style={{
+									marginTop: '10px',
+									marginBottom: '10px',
+									marginRight: '4px',
+									display: 'inline-block'
+								}}>
+								{`${T.t(time.sunCalc.toUpperCase())} (${pad(time.hour24, 2)}:${pad(time.minute, 2)})`}
+							</strong>
+						)}
+						<a className="button" onClick={this.removeAdjustment.bind(this, {nIndex: index})}>
 							{T.t('SETTINGS_TIME_REMOVE')}
 						</a>
 					</div>
 					<div className="row">{this.getAdjustmentTimesMonitors(time, index)}</div>
 				</div>
-			))
-		}
+			)
+		})
 	}
 
 	getAdjustmentTimesMonitors = (time, index) => {
+		const self = this
 		if (this.state.adjustmentTimeIndividualDisplays) {
 			return this.state.monitors.map((monitor, idx) => {
-				let level = time.brightness
+				let brightness = time.brightness
 				if (
 					this.state.adjustmentTimes[index] &&
 					this.state.adjustmentTimes[index].monitors &&
 					this.state.adjustmentTimes[index].monitors[monitor.id] >= 0
 				) {
-					level = this.state.adjustmentTimes[index].monitors[monitor.id]
+					brightness = this.state.adjustmentTimes[index].monitors[monitor.id]
 				}
 				return (
 					<Slider
@@ -576,10 +565,10 @@ export default class SettingsWindow extends PureComponent {
 						min={0}
 						max={100}
 						name={this.getMonitorName(monitor, this.state.names)}
-						onChange={(value) => {
-							this.getAdjustmentTimesMonitorsChanged(index, monitor, value)
+						onChange={(brightness) => {
+							self.updateAdjustment({nIndex: index, monitor, brightness})
 						}}
-						level={level}
+						level={brightness}
 						scrolling={false}
 					/>
 				)
@@ -587,127 +576,94 @@ export default class SettingsWindow extends PureComponent {
 		} else {
 			return (
 				<Slider
-					key={index + '.brightness'}
-					name={T.t('GENERIC_ALL_DISPLAYS')}
-					min={0}
-					max={100}
-					level={time.brightness}
-					onChange={(value, slider) => {
-						this.state.adjustmentTimes[index].brightness = value
-						this.forceUpdate()
-						this.adjustmentTimesUpdated()
+					{...{
+						key: index + '.brightness',
+						name: T.t('GENERIC_ALL_DISPLAYS'),
+						min: 0,
+						max: 100,
+						level: time.brightness,
+						onChange: (brightness, slider) => {
+							this.updateAdjustment({nIndex: index, brightness})
+						},
+						scrolling: false
 					}}
-					scrolling={false}
 				/>
 			)
 		}
 	}
 
-	getAdjustmentTimesMonitorsChanged = (index, monitor, value) => {
-		if (this.state.adjustmentTimes[index].monitors === undefined) {
-			this.state.adjustmentTimes[index].monitors = {}
+	HotKeyStatus = ({id, direction}) => {
+		const bKey = this.state.hotkeys && this.state.hotkeys[id + '__dir' + direction]
+		if (!bKey) {
+			return
 		}
-		this.state.adjustmentTimes[index].monitors[monitor.id] = value
-		console.log(this.state.adjustmentTimes[index].monitors)
-		this.forceUpdate()
-		this.adjustmentTimesUpdated()
+		const bActive = this.state.hotkeys[id + '__dir' + direction].active
+		if (bActive) {
+			return <div className="status icon active">&#xE73E;</div>
+		}
+		return <div className="status icon inactive" />
 	}
 
-	setAdjustmentTimeValue = (index, value, type) => {
-		this.state.adjustmentTimes[index][type] = value
-		this.forceUpdate()
-		this.adjustmentTimesUpdated()
-	}
-
-	getHotkeyMonitor = (displayName, id) => {
+	HotkeyInput = ({id, direction}) => {
 		return (
-			<div key={id} className="hotkey-item">
-				<div className="sectionSubtitle">
-					<div className="icon">&#xE7F4;</div>
-					<div>{displayName}</div>
-				</div>
-				<div className="title">{T.t('SETTINGS_HOTKEYS_INCREASE')}</div>
-				<div className="row">
-					<input
-						placeholder={T.t('SETTINGS_HOTKEYS_PRESS_KEYS_HINT')}
-						value={this.findHotkey(id, 1)}
-						type="text"
-						readOnly={true}
-						onKeyDown={(e) => {
-							e.preventDefault()
-							let key = cleanUpKeyboardKeys(e.key, e.keyCode)
-							if (this.downKeys[key] === undefined) {
-								this.downKeys[key] = true
-								this.updateHotkey(id, this.downKeys, 1)
-							}
-							return false
-						}}
-						onKeyUp={(e) => {
-							delete this.downKeys[cleanUpKeyboardKeys(e.key, e.keyCode)]
-						}}
-					/>
-					<input
-						type="button"
-						value={T.t('GENERIC_CLEAR')}
-						onClick={() => {
-							this.downKeys = {}
-							delete this.state.hotkeys[id + '__dir' + 1]
-							window.sendSettings({hotkeys: this.state.hotkeys})
-							this.forceUpdate()
-						}}
-					/>
-					{this.getHotkeyStatusIcon(id, 1)}
-				</div>
-				<div className="title">{T.t('SETTINGS_HOTKEYS_DECREASE')}</div>
-				<div className="row">
-					<input
-						placeholder={T.t('SETTINGS_HOTKEYS_PRESS_KEYS_HINT')}
-						value={this.findHotkey(id, -1)}
-						type="text"
-						readOnly={true}
-						onKeyDown={(e) => {
-							e.preventDefault()
-							let key = cleanUpKeyboardKeys(e.key, e.keyCode)
-							if (this.downKeys[key] === undefined) {
-								this.downKeys[key] = true
-								this.updateHotkey(id, this.downKeys, -1)
-							}
-							return false
-						}}
-						onKeyUp={(e) => {
-							delete this.downKeys[cleanUpKeyboardKeys(e.key, e.keyCode)]
-						}}
-					/>
-					<input
-						type="button"
-						value={T.t('GENERIC_CLEAR')}
-						onClick={() => {
-							this.downKeys = {}
-							delete this.state.hotkeys[id + '__dir' + -1]
-							window.sendSettings({hotkeys: this.state.hotkeys})
-							this.forceUpdate()
-						}}
-					/>
-					{this.getHotkeyStatusIcon(id, -1)}
-				</div>
+			<div className="row">
+				<input
+					placeholder={T.t('SETTINGS_HOTKEYS_PRESS_KEYS_HINT')}
+					value={this.findHotkey(id, direction)}
+					type="text"
+					readOnly={true}
+					onKeyDown={(e) => {
+						e.preventDefault()
+						let key = cleanUpKeyboardKeys(e.key, e.keyCode)
+						if (this.downKeys[key] === undefined) {
+							this.downKeys[key] = true
+							this.updateHotkey(id, this.downKeys, direction)
+						}
+						return false
+					}}
+					onKeyUp={(e) => {
+						delete this.downKeys[cleanUpKeyboardKeys(e.key, e.keyCode)]
+					}}
+				/>
+				<input
+					type="button"
+					value={T.t('GENERIC_CLEAR')}
+					onClick={() => {
+						this.downKeys = {}
+						this.updateHotkey(id, this.downKeys, direction)
+					}}
+				/>
+				{this.HotKeyStatus({id, direction})}
 			</div>
 		)
 	}
 
-	getHotkeyStatusIcon = (id, direction) => {
-		if (this.state.hotkeys && this.state.hotkeys[id + '__dir' + direction]) {
-			const status = this.state.hotkeys[id + '__dir' + direction].active
-			if (status) {
-				return <div className="status icon active">&#xE73E;</div>
-			} else {
-				return <div className="status icon inactive" />
-			}
-		}
+	HotkeyMonitor = ({displayName, id, icon = '\uE7F4', bDirection = true}) => {
+		return (
+			<div key={id} className="hotkey-item">
+				<div className="sectionSubtitle">
+					<div className="icon">{icon}</div>
+					<div>{displayName}</div>
+				</div>
+				{bDirection && (
+					<Fragment>
+						<div className="title">{T.t('SETTINGS_HOTKEYS_INCREASE')}</div>
+						{this.HotkeyInput({id, direction: 1})}
+						<div className="title">{T.t('SETTINGS_HOTKEYS_DECREASE')}</div>
+						{this.HotkeyInput({id, direction: -1})}
+					</Fragment>
+				)}
+				{!bDirection && this.HotkeyInput({id, direction: 1})}
+			</div>
+		)
 	}
 
-	getHotkeyMonitors = () => {
+	HotkeyMonitors = () => {
 		return this.state.monitors.slice(0).sort(monitorSort).map((monitor, idx) => {
-			return this.getHotkeyMonitor(this.getMonitorName(monitor, this.state.names), monitor.id)
+			return this.HotkeyMonitor({
+				displayName: this.getMonitorName(monitor, this.state.names),
+				id: monitor.id
+			})
 		})
 	}
 
@@ -726,8 +682,16 @@ export default class SettingsWindow extends PureComponent {
 			active: false
 		}
 
+		delete this.state.hotkeys[id + '__dir' + direction]
+		window.sendSettings({hotkeys: this.state.hotkeys})
+		this.forceUpdate()
+
 		const key = id + '__dir' + direction
-		this.state.hotkeys[key] = hotkey
+		if (Object.keys(keys).length !== 0) {
+			this.state.hotkeys[key] = hotkey
+		} else {
+			delete this.state.hotkeys[key]
+		}
 		window.sendSettings({hotkeys: {...this.state.hotkeys}})
 		this.forceUpdate()
 	}
@@ -788,28 +752,71 @@ export default class SettingsWindow extends PureComponent {
 		}
 	}
 
-	addAdjustmentTime = (str) => {
-		const adjustmentTime = {
+	addAdjustmentTime = (str, bDisabled) => {
+		if (bDisabled === true) {
+			return
+		}
+		const adjustment = {
 			brightness: 50,
 			hour: '12',
+			hour24: 12,
 			minute: '30',
 			am: 'PM',
 			monitors: {}
 		}
-		if (str === 'sunrise' || str === 'sunset') {
-			adjustmentTime.sunCalc = str
+		if (aSuncalc.indexOf(str) > -1) {
+			adjustment.sunCalc = str
+			const times = suncalc.getTimes(new Date(), 51.5, -0.1)
+			adjustment.hour24 = times[str].getHours()
+			adjustment.minute = times[str].getMinutes()
 		}
-
-		this.state.adjustmentTimes.push(adjustmentTime)
-		this.forceUpdate()
-		this.adjustmentTimesUpdated()
+		this.state.adjustmentTimes.push(adjustment)
+		window.sendSettings({adjustmentTimes: this.state.adjustmentTimes})
 	}
 
-	adjustmentTimesUpdated = () => {
+	updateAdjustment = ({nIndex, nMinute, nHour, sAmpm, brightness, monitor}) => {
+		const event = this.state.adjustmentTimes[nIndex]
+		if (sAmpm !== undefined) {
+			event.am = sAmpm
+		}
+		if (nHour !== undefined) {
+			event.hour = nHour
+			const hour24 =
+				event.am == 'PM' && event.hour * 1 != 12 ? 12 : event.am == 'AM' && event.hour * 1 == 12 ? -12 : 0
+			event.hour24 = hour24
+		}
+		if (nMinute !== undefined) {
+			event.minute = nMinute
+		}
+		if (brightness !== undefined) {
+			if (!monitor) {
+				event.brightness = brightness
+			}
+			if (monitor) {
+				if (event.monitors === undefined) {
+					event.monitors = {}
+				}
+				event.monitors[monitor.id] = brightness
+			}
+			console.log('brightness', brightness)
+		}
+		this.forceUpdate()
+		window.sendSettings({adjustmentTimes: this.state.adjustmentTimes})
+	}
+
+	removeAdjustment = ({nIndex}) => {
+		this.state.adjustmentTimes.splice(nIndex, 1)
 		window.sendSettings({adjustmentTimes: this.state.adjustmentTimes})
 	}
 
 	render() {
+		let setDisableSuncalcButton = new Set()
+		this.state.adjustmentTimes.map((time) => {
+			if (time.sunCalc) {
+				setDisableSuncalcButton.add(time.sunCalc)
+			}
+		})
+
 		return (
 			<div className="window-base" data-theme={window.settings.theme || 'default'}>
 				<Titlebar title={T.t('SETTINGS_TITLE')} />
@@ -860,18 +867,20 @@ export default class SettingsWindow extends PureComponent {
 						<p>
 							<br />
 							<a className="button" onClick={this.addAdjustmentTime}>
-								+ {T.t('SETTINGS_TIME_ADD')}
+								{T.t('SETTINGS_TIME_ADD')}
 							</a>
+							{aSuncalc.map((str) => {
+								const bDisabled = setDisableSuncalcButton.has(str)
+								return (
+									<a
+										key={str}
+										className={`button button-gap ${bDisabled ? 'button--disabled' : ''}`}
+										onClick={this.addAdjustmentTime.bind(this, str, bDisabled)}>
+										{T.t(str.toUpperCase())}
+									</a>
+								)
+							})}
 						</p>
-						<p>At sunrise (or at sunset) adjust monitor brightness</p>
-						<div className="pageSection">
-							<a
-								className="button"
-								onClick={this.addAdjustmentTime.bind(this, 'sunrise')}>{`at Sunrise`}</a>
-							<a
-								className="button button-gap"
-								onClick={this.addAdjustmentTime.bind(this, 'sunset')}>{`at Sunset`}</a>
-						</div>
 					</div>
 					<div className="pageSection" data-active={this.isSection('time')}>
 						<label>{T.t('SETTINGS_TIME_INDIVIDUAL_TITLE')}</label>
@@ -934,10 +943,17 @@ export default class SettingsWindow extends PureComponent {
 						<div className="sectionTitle">{T.t('SETTINGS_HOTKEYS_TITLE')}</div>
 						<p>{T.t('SETTINGS_HOTKEYS_DESC')}</p>
 						<div className="hotkey-monitors">
-							{this.getHotkeyMonitor(T.t('GENERIC_ALL_DISPLAYS'), 'all')}
-							{this.getHotkeyMonitors()}
+							{this.HotkeyMonitor({displayName: T.t('GENERIC_ALL_DISPLAYS'), id: 'all'})}
+							{this.HotkeyMonitors()}
+							{this.HotkeyMonitor({
+								id: 'turnOffDisplays',
+								bDirection: false,
+								icon: '\uEC46',
+								displayName: T.t('PANEL_BUTTON_TURN_OFF_DISPLAYS')
+							})}
 						</div>
 					</div>
+
 					<div className="pageSection" data-active={this.isSection('hotkeys')}>
 						<div className="sectionTitle">{T.t('SETTINGS_HOTKEYS_LEVEL_TITLE')}</div>
 						<p>{T.t('SETTINGS_HOTKEYS_LEVEL_DESC')}</p>
@@ -947,12 +963,13 @@ export default class SettingsWindow extends PureComponent {
 								this.setState({hotkeyPercent: e.target.value * 1})
 								window.sendSettings({hotkeyPercent: e.target.value * 1})
 							}}>
-							<option value="5">5%</option>
-							<option value="10">10%</option>
-							<option value="15">15%</option>
-							<option value="20">20%</option>
-							<option value="25">25%</option>
-							<option value="30">30%</option>
+							{[5, 10, 15, 20, 25, 30].map((number) => {
+								return (
+									<option key={number} value={number}>
+										{number + '%'}
+									</option>
+								)
+							})}
 						</select>
 					</div>
 
